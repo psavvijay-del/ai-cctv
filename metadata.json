@@ -1,0 +1,6 @@
+{
+  "name": "AI-Based Intelligent CCTV Surveillance System",
+  "description": "Real-time CCTV anomaly detection, multi-camera monitoring, restricted-area intrusion tracking, and automated security incident alerting platform.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
