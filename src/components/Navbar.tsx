@@ -39,6 +39,19 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [time, setTime] = useState<string>('');
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
+  const [pythonConnected, setPythonConnected] = useState<boolean>(false);
+
+  useEffect(() => {
+    const checkStatus = () => {
+      fetch('/api/ai/status')
+        .then((r) => r.json())
+        .then((data) => setPythonConnected(Boolean(data.connected)))
+        .catch(() => setPythonConnected(false));
+    };
+    checkStatus();
+    const interval = setInterval(checkStatus, 4000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const updateTime = () => {
@@ -213,11 +226,18 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Python Backend Connect Indicator */}
           <button
             onClick={onNavigateToGuide}
-            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 text-xs font-mono transition-colors"
-            title="Configure Standalone Python OpenCV / YOLOv8 Backend"
+            className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs font-mono transition-all ${
+              pythonConnected
+                ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300 hover:border-emerald-400'
+                : 'bg-slate-900 border-slate-800 hover:border-slate-700 text-slate-300'
+            }`}
+            title={pythonConnected ? 'Python YOLOv8 Backend Connected on :8000' : 'Configure Standalone Python OpenCV / YOLOv8 Backend'}
           >
-            <Server className="w-3.5 h-3.5 text-blue-400" />
-            <span className="text-[11px]">YOLOv8 BACKEND</span>
+            <span className={`w-2 h-2 rounded-full ${pythonConnected ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+            <Server className={`w-3.5 h-3.5 ${pythonConnected ? 'text-emerald-400' : 'text-blue-400'}`} />
+            <span className="text-[11px] font-semibold">
+              {pythonConnected ? 'BACKEND: CONNECTED' : 'YOLOv8 BACKEND'}
+            </span>
             <ExternalLink className="w-3 h-3 text-slate-500" />
           </button>
 

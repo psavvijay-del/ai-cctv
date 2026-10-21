@@ -88,11 +88,30 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Check python backend connection via server-side proxy
   useEffect(() => {
-    fetch('/api/ai/status')
-      .then((r) => r.json())
-      .then((data) => setPythonConnected(Boolean(data.connected)))
-      .catch(() => setPythonConnected(false));
-  }, [engineMode]);
+    let mounted = true;
+    const checkBackend = () => {
+      fetch('/api/ai/status')
+        .then((r) => r.json())
+        .then((data) => {
+          if (!mounted) return;
+          const isConn = Boolean(data.connected);
+          setPythonConnected(isConn);
+          if (isConn) {
+            setEngineMode('python');
+          }
+        })
+        .catch(() => {
+          if (mounted) setPythonConnected(false);
+        });
+    };
+
+    checkBackend();
+    const interval = setInterval(checkBackend, 5000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   // Entities state for simulated CCTV stream
   const entitiesRef = useRef<SimulatedEntity[]>([

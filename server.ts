@@ -385,29 +385,47 @@ let monitoringState = {
 };
 
 // AI Engine Status Check (Proxied safely server-side to prevent browser CORS/ERR_FAILED)
-app.get('/api/ai/status', async (req: Request, res: Response) => {
+async function checkPythonHealth(): Promise<boolean> {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 800);
+    const timeout = setTimeout(() => controller.abort(), 1000);
     const pyRes = await fetch(`${monitoringState.external_python_backend_url}/api/health`, {
       signal: controller.signal,
     }).catch(() => null);
     clearTimeout(timeout);
 
     if (pyRes && pyRes.ok) {
-      const data = await pyRes.json();
       monitoringState.external_python_connected = true;
-      return res.json({ connected: true, data });
+      return true;
     }
   } catch {
     // Ignore offline error
   }
   monitoringState.external_python_connected = false;
+  return false;
+}
+
+// Periodically check Python backend connection status
+setInterval(checkPythonHealth, 4000);
+checkPythonHealth();
+
+app.get('/api/ai/status', async (req: Request, res: Response) => {
+  const isConnected = await checkPythonHealth();
+  if (isConnected) {
+    try {
+      const pyRes = await fetch(`${monitoringState.external_python_backend_url}/api/health`);
+      const data = await pyRes.json();
+      return res.json({ connected: true, data });
+    } catch {
+      // Fallback
+    }
+  }
   res.json({ connected: false });
 });
 
 // Health & System Status
-app.get('/api/health', (req: Request, res: Response) => {
+app.get('/api/health', async (req: Request, res: Response) => {
+  await checkPythonHealth();
   res.json({
     status: 'healthy',
     system: 'AI-Based Intelligent CCTV Surveillance Platform',
@@ -779,9 +797,22 @@ async function startServer() {
     }
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[CCTV SOC SERVER] Intelligent CCTV Surveillance System running on http://0.0.0.0:${PORT}`);
-  });
+  function listen(port: number) {
+    const server = app.listen(port, '0.0.0.0', () => {
+      console.log(`[CCTV SOC SERVER] Intelligent CCTV Surveillance System running on http://localhost:${port}`);
+    });
+
+    server.on('error', (err: any) => {
+      if (err.code === 'EADDRINUSE') {
+        console.warn(`[CCTV SOC SERVER] Port ${port} is in use, trying port ${port + 1}...`);
+        listen(port + 1);
+      } else {
+        console.error('[CCTV SOC SERVER] Server error:', err);
+      }
+    });
+  }
+
+  listen(PORT);
 }
 
 startServer();
